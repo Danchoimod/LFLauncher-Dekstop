@@ -27,7 +27,7 @@ public class ViewManager {
     
     public void init(Stage stage) {
         this.primaryStage = stage;
-        this.primaryStage.setTitle("LastFom Launcher");
+        this.primaryStage.setTitle("LastFom Launcher (1.0.0-beta.1)");
         this.primaryStage.setWidth(960);
         this.primaryStage.setHeight(700);
         this.primaryStage.setMinWidth(960);
