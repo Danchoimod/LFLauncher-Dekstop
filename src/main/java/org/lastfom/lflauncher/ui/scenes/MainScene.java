@@ -1,20 +1,21 @@
 package org.lastfom.lflauncher.ui.scenes;
 
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 
-import org.lastfom.lflauncher.ui.components.NavigationTab;
-import org.lastfom.lflauncher.ui.components.PlayButton;
 import org.lastfom.lflauncher.ui.components.SidebarButton;
-import org.lastfom.lflauncher.ui.styles.Theme;
+import org.lastfom.lflauncher.ui.fragments.BaseFragment;
+import org.lastfom.lflauncher.ui.fragments.JavaEditionFragment;
+import org.lastfom.lflauncher.ui.fragments.NewsFragment;
+import org.lastfom.lflauncher.ui.fragments.SettingsFragment;
+import org.lastfom.lflauncher.ui.fragments.WindowsEditionFragment;
 
 import javafx.geometry.Insets;
-import javafx.geometry.Pos;
 import javafx.scene.control.Label;
-import javafx.scene.image.Image;
 import javafx.scene.image.ImageView;
 import javafx.scene.layout.BorderPane;
-import javafx.scene.layout.HBox;
 import javafx.scene.layout.Priority;
 import javafx.scene.layout.Region;
 import javafx.scene.layout.StackPane;
@@ -23,14 +24,54 @@ import javafx.scene.layout.VBox;
 public class MainScene extends StackPane {
     
     private List<SidebarButton> sidebarButtons = new ArrayList<>();
-    private List<NavigationTab> navigationTabs = new ArrayList<>();
     private BorderPane mainLayout = new BorderPane();
+    private Region backgroundRegion;
+    private Region overlay;
+    
+    // Fragment management
+    private Map<String, BaseFragment> fragments = new HashMap<>();
+    private BaseFragment currentFragment;
+    private StackPane settingsOverlay;
     
     public MainScene() {
+        // Initialize fragments
+        initializeFragments();
+        
         // 1. Background Cover (Luôn phủ kín khi phóng to)
-        Region backgroundRegion = new Region();
+        backgroundRegion = new Region();
+        setBackground("news");
+
+        overlay = new Region();
+        overlay.setStyle("-fx-background-color: rgba(0, 0, 0, 0.6);");
+
+        mainLayout.setLeft(createSidebar());
+        
+        // Load default fragment
+        loadFragment("news");
+        
+        this.getChildren().addAll(backgroundRegion, overlay, mainLayout);
+    }
+    
+    private void initializeFragments() {
+        fragments.put("news", new NewsFragment());
+        fragments.put("java", new JavaEditionFragment());
+        fragments.put("windows", new WindowsEditionFragment());
+        fragments.put("settings", new SettingsFragment());
+    }
+    
+    private void setBackground(String fragmentKey) {
         try {
-            String imagePath = getClass().getResource("/assets/images/wallpaper.png").toExternalForm();
+            String imagePath;
+            switch (fragmentKey) {
+                case "java":
+                    imagePath = getClass().getResource("/assets/images/wallpaper_java.png").toExternalForm();
+                    break;
+                case "windows":
+                    imagePath = getClass().getResource("/assets/images/wallpaper_windows.png").toExternalForm();
+                    break;
+                default: // news
+                    imagePath = getClass().getResource("/assets/images/wallpaper.png").toExternalForm();
+            }
             backgroundRegion.setStyle(
                 "-fx-background-image: url('" + imagePath + "'); " +
                 "-fx-background-position: center center; " +
@@ -40,14 +81,22 @@ public class MainScene extends StackPane {
         } catch (Exception e) {
             backgroundRegion.setStyle("-fx-background-color: #1a1a1a;");
         }
-
-        Region overlay = new Region();
-        overlay.setStyle("-fx-background-color: rgba(0, 0, 0, 0.6);");
-
-        mainLayout.setLeft(createSidebar());
-        mainLayout.setCenter(createMainContent());
-        
-        this.getChildren().addAll(backgroundRegion, overlay, mainLayout);
+    }
+    
+    private void loadFragment(String fragmentKey) {
+        BaseFragment fragment = fragments.get(fragmentKey);
+        if (fragment != null) {
+            if (currentFragment != null) {
+                currentFragment.onHide();
+            }
+            
+            currentFragment = fragment;
+            mainLayout.setCenter(fragment);
+            fragment.onShow();
+            
+            // Update background
+            setBackground(fragmentKey);
+        }
     }
     
     private VBox createSidebar() {
@@ -77,20 +126,36 @@ public class MainScene extends StackPane {
         userSection.getChildren().addAll(userAvatar, userName, accountType);
         
         SidebarButton newsBtn = createSidebarButton("News", "");
+        newsBtn.setUserData("news");
+        
         SidebarButton javaBtn = createSidebarButton("MINECRAFT", "Java Edition");
+        javaBtn.setUserData("java");
+        
         SidebarButton windowsBtn = createSidebarButton("MINECRAFT", "for Windows");
+        windowsBtn.setUserData("windows");
+        
         sidebarButtons.addAll(List.of(newsBtn, javaBtn, windowsBtn));
         
         for (SidebarButton btn : sidebarButtons) {
-            btn.setOnMouseClicked(e -> selectSidebarButton(btn));
-            btn.setMaxWidth(Double.MAX_VALUE); // Cho phép button rộng theo sidebar
+            btn.setOnMouseClicked(e -> {
+                String fragmentKey = (String) btn.getUserData();
+                loadFragment(fragmentKey);
+            });
+            btn.setMaxWidth(Double.MAX_VALUE);
         }
+        
+        // Select default button
+        newsBtn.setSelected(true);
         
         Region spacer = new Region();
         VBox.setVgrow(spacer, Priority.ALWAYS);
         
         SidebarButton settingsBtn = createSidebarButton("Settings", "");
         settingsBtn.setMaxWidth(Double.MAX_VALUE);
+        settingsBtn.setOnMouseClicked(e -> {
+            loadFragment("settings");
+            setBackground("news");
+        });
         
         sidebar.getChildren().addAll(userSection, newsBtn, javaBtn, windowsBtn, spacer, settingsBtn);
         return sidebar;
@@ -98,116 +163,5 @@ public class MainScene extends StackPane {
 
     private SidebarButton createSidebarButton(String title, String subtitle) {
         return new SidebarButton("", title, subtitle);
-    }
-    
-    private void selectSidebarButton(SidebarButton selected) {
-        for (SidebarButton btn : sidebarButtons) {
-            btn.setSelected(btn == selected);
-        }
-    }
-    
-    private BorderPane createMainContent() {
-        BorderPane content = new BorderPane();
-        content.setTop(createNavigationBar());
-        content.setCenter(createGameContent());
-        content.setBottom(createBottomBar());
-        return content;
-    }
-    
-    private HBox createNavigationBar() {
-        HBox navbar = new HBox(20);
-        navbar.setAlignment(Pos.CENTER_LEFT);
-        navbar.setPadding(new Insets(25, 30, 10, 30));
-        
-        // TỰ ĐỘNG CHIỀU CAO: Navbar chiếm 10% chiều cao màn hình
-        navbar.prefHeightProperty().bind(this.heightProperty().multiply(0.1));
-        
-        NavigationTab playTab = new NavigationTab("Play");
-        NavigationTab dlcTab = new NavigationTab("DLC");
-        NavigationTab faqTab = new NavigationTab("FAQ");
-        NavigationTab installTab = new NavigationTab("Installation");
-        NavigationTab patchTab = new NavigationTab("Patch Notes");
-        
-        playTab.setSelected(true);
-        navigationTabs.addAll(List.of(playTab, dlcTab, faqTab, installTab, patchTab));
-        
-        for (NavigationTab tab : navigationTabs) {
-            tab.setOnMouseClicked(e -> selectNavigationTab(tab));
-        }
-        
-        navbar.getChildren().addAll(navigationTabs);
-        return navbar;
-    }
-    
-    private void selectNavigationTab(NavigationTab selected) {
-        for (NavigationTab tab : navigationTabs) {
-            tab.setSelected(tab == selected);
-        }
-    }
-    
-    private StackPane createGameContent() {
-        StackPane contentArea = new StackPane();
-        VBox titleContainer = new VBox();
-        titleContainer.setAlignment(Pos.CENTER);
-        titleContainer.setMouseTransparent(true); 
-
-        try {
-            Image titleImg = new Image(getClass().getResourceAsStream("/assets/icons/title.png"));
-            ImageView titleView = new ImageView(titleImg);
-            titleView.setPreserveRatio(true);
-            titleView.setTranslateY(-170); 
-            titleView.setFitWidth(300);
-            
-            titleContainer.getChildren().add(titleView);
-        } catch (Exception e) {
-            Label fallbackTitle = new Label("LF LAUNCHER");
-            fallbackTitle.setStyle("-fx-text-fill: white; -fx-font-size: 40px; -fx-font-weight: bold;");
-            titleContainer.getChildren().add(fallbackTitle);
-        }
-
-        contentArea.getChildren().add(titleContainer);
-        return contentArea;
-    }
-    
-    private StackPane createBottomBar() {
-        StackPane bottomBar = new StackPane();
-        bottomBar.setPadding(new Insets(0, 40, 0, 40));
-        
-        // TỰ ĐỘNG CHIỀU CAO: Bottombar chiếm 15% chiều cao màn hình
-        bottomBar.prefHeightProperty().bind(this.heightProperty().multiply(0.1));
-        bottomBar.setMinHeight(80);
-        
-        bottomBar.setStyle("-fx-background-color: rgba(0, 0, 0, 0.7);");
-        
-        // Nút PLAY
-        PlayButton playBtn = new PlayButton("PLAY");
-        
-        // Kích thước nút Play cũng giãn nhẹ theo màn hình
-        playBtn.prefWidthProperty().bind(bottomBar.widthProperty().multiply(0.2)); 
-        playBtn.setPrefHeight(55);
-        playBtn.setMaxWidth(250);
-        
-        // Màu xanh Minecraft và hiệu ứng
-        playBtn.setStyle(Theme.Styles.PLAY_BUTTON_STYLE);
-        playBtn.setOnMouseEntered(e -> playBtn.setStyle(Theme.Styles.PLAY_BUTTON_HOVER_STYLE));
-        playBtn.setOnMouseExited(e -> playBtn.setStyle(Theme.Styles.PLAY_BUTTON_STYLE));
-        playBtn.setOnMousePressed(e -> playBtn.setStyle(Theme.Styles.PLAY_BUTTON_PRESSED_STYLE));
-        playBtn.setOnMouseReleased(e -> playBtn.setStyle(Theme.Styles.PLAY_BUTTON_HOVER_STYLE));
-        
-        StackPane.setAlignment(playBtn, Pos.CENTER);
-        
-        // Container phải
-        HBox rightContainer = new HBox();
-        rightContainer.setAlignment(Pos.CENTER_RIGHT);
-        rightContainer.setPickOnBounds(false);
-        
-        Label playerBtn = new Label("Player Settings");
-        playerBtn.setStyle("-fx-text-fill: white; -fx-font-size: 14px; -fx-padding: 12 25; " +
-                          "-fx-background-color: rgba(255, 255, 255, 0.1); -fx-background-radius: 5;");
-        playerBtn.setCursor(javafx.scene.Cursor.HAND);
-        rightContainer.getChildren().add(playerBtn);
-        
-        bottomBar.getChildren().addAll(rightContainer, playBtn);
-        return bottomBar;
     }
 }

@@ -1,4 +1,4 @@
-src/main/java/com/yourname/launcher/
+src/main/java/org/lastfom/lflauncher/
 │
 ├── core/                # Logic lõi của Launcher (không liên quan UI)
 │   ├── auth/            # Xử lý đăng nhập (Microsoft/Offline)
@@ -17,3 +17,11 @@ src/main/java/com/yourname/launcher/
 ├── viewmodels/          # Trung gian kết nối UI và Core (Data Binding)
 │
 └── Main.java            # Điểm khởi chạy ứng dụng (Entry Point)
+
+
+src/main/java/org/lastfom/resources/
+│
+├── assets/               
+│   ├── font/            # chứa font 
+│   ├── icons/        # chứa icon của ứng dụng
+│   ├── images/            # chứa hình ảnh
